@@ -6,10 +6,28 @@
 //  Copyright © 2019 DaHuanXiong. All rights reserved.
 //
 
+#import <Foundation/Foundation.h>
+#import <UIKit/UIKit.h>
 #import "HXDataControllerHeader.h"
+#import "HXTuple.h"
+
+#pragma mark - Notice
+
+#pragma mark RequestSuccessPreprocessSnippet
+//- (HXTuple *)_<#RequestDes#>RequestSuccessPreprocessWithResponse:(id)response message:(NSString *)message extendedParameter:(id)extendedParameter {
+//
+//    return hx_packTuple(<#response#>, <#message#>, <#extendedParameter#>);
+//}
+
+#pragma mark RequestFailPreprocessSnippet
+//- (HXTuple *)_<#RequestDes#>RequestFailPreprocessWithNetNotReachable: (BOOL)netNotReachable message:(NSString *)message error:(NSError *)error extendedParameter:(id)extendedParameter {
+//
+//    return hx_packTuple(<#message#>, <#error#>, <#extendedParameter#>);
+//}
 
 @interface HXBaseDataController : NSObject
 #pragma mark - Require Tip
+
 @property (nonatomic, weak) id<HXBaseDataControllerDelegate> requestDelegate;
 @property (nonatomic, weak) UIViewController *associatedVC;
 
@@ -17,7 +35,7 @@
 //you can override this property
 @property (nonatomic, strong) id<HXCurrentProgramDataControllerDelegate> currentProgramDataController;
 
-// this must call first otherwise dataController can't work
+// this must call otherwise this server of data controller can't work
 + (void)setDefaultClassForCurrentProgramDataController:(Class)defaultClass;
 
 

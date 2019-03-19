@@ -9,10 +9,6 @@
 #ifndef HXDataControllerHeader_h
 #define HXDataControllerHeader_h
 
-#import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
-
-
 #pragma mark - APIMethodMacro
 
 //example
@@ -63,7 +59,7 @@ typedef void (^DataControllerFailBlock)(BOOL netNotReachable, NSString  * _Nulla
                  requestIdentifier:(id _Nonnull)requestIdentifier;
 
 - (void)requestFailWithNetNotReachable:(BOOL)netNotReachable
-                       mesaage:(NSString * _Nullable)message
+                       message:(NSString * _Nullable)message
                          error:(NSError * _Nullable)error
              extendedParameter:(id _Nullable)extendedParameter
              requestIdentifier:(id _Nonnull)requestIdentifier;

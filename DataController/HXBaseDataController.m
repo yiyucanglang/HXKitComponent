@@ -95,7 +95,7 @@ static NSString *currentProgramDataControllerClassName;
 
 #pragma mark - Private Method
 - (void)storageRequestCallBackBlockWithIdentifier:(id)requestIdentifier successBlock:(id _Nullable)successBlock failBlock:(id)failBlock {
-    DCLock
+    
     NSMutableDictionary *blockDic = [NSMutableDictionary dictionary];
     [self.callBackBlockMapTable removeObjectForKey:requestIdentifier];
     
@@ -110,7 +110,6 @@ static NSString *currentProgramDataControllerClassName;
     if (blockDic.allKeys.count) {
         [self.callBackBlockMapTable setObject:blockDic forKey:requestIdentifier];
     }
-    DCUnlock
 }
 
 - (DataControllerSuccessBlock _Nullable)successBlockWithRequestIdentifier:(id)requestIdentifier {
@@ -131,36 +130,17 @@ static NSString *currentProgramDataControllerClassName;
 }
 
 #pragma mark Tool
-#pragma mark success
-- (id)successPreprocessResponseMethodWithRequestDescription:(NSString *)requestDescription {
-    return [NSString stringWithFormat:@"_%@RequestSuccessPreprocessWithSourceResponse:", requestDescription];
+#pragma mark successPreprocessMethodStr
+
+- (id)successPreprocessMethodWithRequestDescription:(NSString *)requestDescription {
+    return [NSString stringWithFormat:@"_%@RequestSuccessPreprocessWithResponse:message:extendedParameter:", requestDescription];
 }
 
-- (id)successPreprocessMessageMethodWithRequestDescription:(NSString *)requestDescription {
-    return [NSString stringWithFormat:@"_%@RequestSuccessPreprocessWithSourceMessage:", requestDescription];
+#pragma mark failPreprocessMethodStr
+- (id)failPreprocessMethodWithRequestDescription:(NSString *)requestDescription {
+    return [NSString stringWithFormat:@"_%@RequestFailPreprocessWithNetNotReachable:message:error:extendedParameter:", requestDescription];
 }
 
-- (id)successPreprocessExtendedParameterMethodWithRequestDescription:(NSString *)requestDescription {
-    
-    return [NSString stringWithFormat:@"_%@RequestSuccessPreprocessWithSourceExtendedParameter:", requestDescription];
-}
-
-#pragma mark fail
-- (id)failPreprocessMessageMethodWithRequestDescription:(NSString *)requestDescription {
-    return [NSString stringWithFormat:@"_%@RequestFailPreprocessWithSourceMessage:netNotReachable:", requestDescription];
-}
-
-
-- (id)failPreprocessErrorMethodWithRequestDescription:(NSString *)requestDescription {
-    
-    return [NSString stringWithFormat:@"_%@RequestFailPreprocessWithSourceError:netNotReachable:", requestDescription];
-}
-
-
-- (id)failPreprocessExtendedParameterMethodWithRequestDescription:(NSString *)requestDescription {
-    
-    return [NSString stringWithFormat:@"_%@RequestFailPreprocessWithSourceExtendedParameter:netNotReachable:", requestDescription];
-}
 
 #pragma mark - Delegate
 #pragma mark HXBaseDataControllerDelegate
@@ -171,26 +151,31 @@ static NSString *currentProgramDataControllerClassName;
     
     NSString *requestDescription = [self.requestDesMapTable objectForKey:requestIdentifier];
     if (requestDescription.length) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
         
-        SEL preprocessResponseSEL = NSSelectorFromString([self successPreprocessResponseMethodWithRequestDescription:requestDescription]);
-        if ([self respondsToSelector:preprocessResponseSEL]) {
-            response = [self performSelector:preprocessResponseSEL withObject:response];
+        SEL sel = NSSelectorFromString([self successPreprocessMethodWithRequestDescription:requestDescription]);
+        
+        if ([self respondsToSelector:sel]) {
+            
+            NSMethodSignature *signature = [[self class] instanceMethodSignatureForSelector:sel];
+            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
+            [invocation setTarget:self];
+            
+            [invocation setSelector:sel];
+            [invocation setArgument:&response atIndex:2];
+            [invocation setArgument:&message atIndex:3];
+            [invocation setArgument:&extendedParameter atIndex:4];
+            [invocation invoke];
+            
+            __weak HXTuple *tuple = nil;
+            if ([signature methodReturnLength] != 0)
+            {
+                [invocation getReturnValue:&tuple];
+                hx_unpackTuple(tuple, &response, &message, &extendedParameter);
+            }
+            
         }
         
         
-        SEL preprocessMessageSEL = NSSelectorFromString([self successPreprocessMessageMethodWithRequestDescription:requestDescription]);
-        if ([self respondsToSelector:preprocessMessageSEL]) {
-            message = [self performSelector:preprocessMessageSEL withObject:message];
-        }
-        
-        SEL preprocessExtandedParameterSEL = NSSelectorFromString([self successPreprocessExtendedParameterMethodWithRequestDescription:requestDescription]);
-        if ([self respondsToSelector:preprocessExtandedParameterSEL]) {
-            extendedParameter = [self performSelector:preprocessExtandedParameterSEL withObject:extendedParameter];
-        }
-        
-#pragma clang diagnostic pop
     }
     
     
@@ -207,40 +192,42 @@ static NSString *currentProgramDataControllerClassName;
     [self cleanAfterRequestFinished:requestIdentifier];
 }
 
-- (void)requestFailWithNetNotReachable:(BOOL)netNotReachable mesaage:(NSString *)message error:(NSError *)error extendedParameter:(id)extendedParameter requestIdentifier:(id)requestIdentifier {
+- (void)requestFailWithNetNotReachable:(BOOL)netNotReachable message:(NSString *)message error:(NSError *)error extendedParameter:(id)extendedParameter requestIdentifier:(id)requestIdentifier {
     
     NSString *requestDescription = [self.requestDesMapTable objectForKey:requestIdentifier];
     if (requestDescription.length) {
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        SEL sel = NSSelectorFromString([self failPreprocessMethodWithRequestDescription:requestDescription]);
         
-        SEL preprocessErrorSEL = NSSelectorFromString([self failPreprocessErrorMethodWithRequestDescription:requestDescription]);
-        if ([self respondsToSelector:preprocessErrorSEL]) {
-            error = [self performSelector:preprocessErrorSEL withObject:error withObject:@(netNotReachable)];
+        if ([self respondsToSelector:sel]) {
+            
+            NSMethodSignature *signature = [[self class] instanceMethodSignatureForSelector:sel];
+            NSInvocation *invocation = [NSInvocation invocationWithMethodSignature:signature];
+            [invocation setTarget:self];
+            
+            [invocation setSelector:sel];
+            [invocation setArgument:&netNotReachable atIndex:2];
+            [invocation setArgument:&message atIndex:3];
+            [invocation setArgument:&error atIndex:4];
+            [invocation setArgument:&extendedParameter atIndex:5];
+            [invocation invoke];
+            
+            __weak HXTuple *tuple = nil;
+            if ([signature methodReturnLength] != 0)
+            {
+                [invocation getReturnValue:&tuple];
+                hx_unpackTuple(tuple, &message, &error, &extendedParameter);
+            }
+            
         }
-        
-        
-        SEL preprocessMessageSEL = NSSelectorFromString([self failPreprocessMessageMethodWithRequestDescription:requestDescription]);
-        if ([self respondsToSelector:preprocessMessageSEL]) {
-            message = [self performSelector:preprocessMessageSEL withObject:message withObject:@(netNotReachable)];
-        }
-        
-        SEL preprocessExtandedParameterSEL = NSSelectorFromString([self failPreprocessExtendedParameterMethodWithRequestDescription:requestDescription]);
-        if ([self respondsToSelector:preprocessExtandedParameterSEL]) {
-            extendedParameter = [self performSelector:preprocessExtandedParameterSEL withObject:extendedParameter withObject:@(netNotReachable)];
-        }
-        
-#pragma clang diagnostic pop
     }
-    
     
     DataControllerFailBlock block = [self failBlockWithRequestIdentifier:requestIdentifier];
     if (block) {
         block(netNotReachable, message, error, extendedParameter);
     }
     else {
-        if ([self.requestDelegate respondsToSelector:@selector(requestFailWithNetNotReachable:mesaage:error:extendedParameter:requestIdentifier:)]) {
-            [self.requestDelegate requestFailWithNetNotReachable:netNotReachable mesaage:message error:error extendedParameter:extendedParameter requestIdentifier:requestIdentifier];
+        if ([self.requestDelegate respondsToSelector:@selector(requestFailWithNetNotReachable:message:error:extendedParameter:requestIdentifier:)]) {
+            [self.requestDelegate requestFailWithNetNotReachable:netNotReachable message:message error:error extendedParameter:extendedParameter requestIdentifier:requestIdentifier];
         }
     }
     
