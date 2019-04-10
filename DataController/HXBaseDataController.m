@@ -8,6 +8,7 @@
 
 #import "HXBaseDataController.h"
 #import <pthread.h>
+#import <objc/runtime.h>
 
 #define DCLock  pthread_mutex_lock(&_mutex);
 #define DCUnlock    pthread_mutex_unlock(&_mutex);
@@ -48,7 +49,9 @@ static NSString *currentProgramDataControllerClassName;
 
 - (id)startRequest:(id)request successBlock:(id)successBlock failBlock:(id)failBlock requestDescription:(NSString *)requestDescription {
     
-    id requestIdentifier = [self.currentProgramDataController identifierForRequest:request];
+    id requestIdentifier = [self identifierForRequest:request];
+    
+    [self stopRequest:requestIdentifier];
     
     [self.currentProgramDataController startRequest:request];
     
@@ -65,24 +68,37 @@ static NSString *currentProgramDataControllerClassName;
     return [self startRequest:request successBlock:nil failBlock:nil requestDescription:requestDescription];
 }
 
+- (id)startRequest:(id)request successBlock:(id)successBlock failBlock:(id)failBlock upperMethod:(SEL)upperMethod {
+    
+    
+    NSString *methodStr = NSStringFromSelector(upperMethod);
+    NSRange begin = [methodStr rangeOfString:@"requestOf"];
+    NSRange end = [methodStr rangeOfString:@"With"];
+    
+    NSString *requestDescription = [methodStr substringWithRange:NSMakeRange(begin.location + begin.length, end.location - begin.location - begin.length)];
+    
+    return [self startRequest:request successBlock:successBlock failBlock:failBlock requestDescription:requestDescription];
+}
+
+- (id)startRequest:(id)request upperMethod:(SEL)upperMethod {
+   return   [self startRequest:request successBlock:nil failBlock:nil upperMethod:upperMethod];
+}
+
 
 - (void)stopRequest:(id)requestIdentifier {
     id request = [self.requestsMapTable objectForKey:requestIdentifier];
     [self.currentProgramDataController stopRequest:request];
-    
-    DCLock
-    [self.requestsMapTable removeObjectForKey:requestIdentifier];
-    DCUnlock
+    [self cleanAfterRequestFinished:requestIdentifier];
 }
 
 - (void)stopAllRequest {
     DCLock
     NSArray *keysArr = [[[self.requestsMapTable keyEnumerator] allObjects] copy];
-    DCUnlock
     
     for (id key in keysArr) {
         [self stopRequest:key];
     }
+    DCUnlock
 }
 
 - (id)createRequestWithParameter:(id)parameter {
@@ -93,7 +109,24 @@ static NSString *currentProgramDataControllerClassName;
     
 }
 
+- (id)createRequestWithPath:(NSString *)path method:(NSString *)method arguments:(id)arguments {
+    if ([self.currentProgramDataController respondsToSelector:@selector(createRequestWithPath:method:arguments:)]) {
+        return [self.currentProgramDataController createRequestWithPath:path method:method arguments:arguments];
+    }
+    return nil;
+}
+
+- (id)identifierForRequest:(id)request {
+    return [self.currentProgramDataController identifierForRequest:request];
+}
+
+- (BOOL)shouldCallBackForRequestIdentifier:(id)identifier {
+    return YES;
+}
+
+
 #pragma mark - Private Method
+
 - (void)storageRequestCallBackBlockWithIdentifier:(id)requestIdentifier successBlock:(id _Nullable)successBlock failBlock:(id)failBlock {
     
     NSMutableDictionary *blockDic = [NSMutableDictionary dictionary];
@@ -149,6 +182,11 @@ static NSString *currentProgramDataControllerClassName;
                  extendedParameter:(id _Nullable)extendedParameter
                  requestIdentifier:(id _Nonnull)requestIdentifier {
     
+    if (![self shouldCallBackForRequestIdentifier:requestIdentifier]) {
+        [self cleanAfterRequestFinished:requestIdentifier];
+        return;
+    }
+    
     NSString *requestDescription = [self.requestDesMapTable objectForKey:requestIdentifier];
     if (requestDescription.length) {
         
@@ -184,15 +222,30 @@ static NSString *currentProgramDataControllerClassName;
         block(response, message, extendedParameter);
     }
     else {
-        if ([self.requestDelegate respondsToSelector:@selector(requestSuccessWithResponse:message:extendedParameter:requestIdentifier:)]) {
-            [self.requestDelegate requestSuccessWithResponse:response message:message extendedParameter:extendedParameter requestIdentifier:requestIdentifier];
+        if ([self.requestDelegate respondsToSelector:@selector(requestSuccessWithResponse:message:extendedParameter:requestDes:)]) {
+            [self.requestDelegate requestSuccessWithResponse:response message:message extendedParameter:extendedParameter requestDes:requestDescription];
         }
     }
     
     [self cleanAfterRequestFinished:requestIdentifier];
 }
 
-- (void)requestFailWithNetNotReachable:(BOOL)netNotReachable message:(NSString *)message error:(NSError *)error extendedParameter:(id)extendedParameter requestIdentifier:(id)requestIdentifier {
+- (void)requestFailWithNetNotReachable:(BOOL)netNotReachable message:(NSString *)message error:(NSError *)error extendedParameter:(id)extendedParameter requestIdentifier:(id)requestIdentifier globalHandled:(BOOL)globalHandled {
+    
+    if (![self shouldCallBackForRequestIdentifier:requestIdentifier]) {
+        [self cleanAfterRequestFinished:requestIdentifier];
+        return;
+    }
+    
+    if (globalHandled) {
+        
+        if (self.nextHandleBlockAfterGloableHandled) {
+            self.nextHandleBlockAfterGloableHandled(requestIdentifier);
+        }
+        
+        [self cleanAfterRequestFinished:requestIdentifier];
+        return;
+    }
     
     NSString *requestDescription = [self.requestDesMapTable objectForKey:requestIdentifier];
     if (requestDescription.length) {
@@ -226,8 +279,8 @@ static NSString *currentProgramDataControllerClassName;
         block(netNotReachable, message, error, extendedParameter);
     }
     else {
-        if ([self.requestDelegate respondsToSelector:@selector(requestFailWithNetNotReachable:message:error:extendedParameter:requestIdentifier:)]) {
-            [self.requestDelegate requestFailWithNetNotReachable:netNotReachable message:message error:error extendedParameter:extendedParameter requestIdentifier:requestIdentifier];
+        if ([self.requestDelegate respondsToSelector:@selector(requestFailWithNetNotReachable:message:error:extendedParameter:requestDes:)]) {
+            [self.requestDelegate requestFailWithNetNotReachable:netNotReachable message:message error:error extendedParameter:extendedParameter requestDes:requestDescription];
         }
     }
     
@@ -276,6 +329,7 @@ static NSString *currentProgramDataControllerClassName;
 
 #pragma mark - Dealloc
 - (void)dealloc {
+    [self stopAllRequest];
     NSLog(@"%@ dealloc", [self class]);
 }
 

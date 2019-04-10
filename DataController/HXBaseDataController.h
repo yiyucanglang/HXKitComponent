@@ -25,11 +25,31 @@
 //    return hx_packTuple(<#message#>, <#error#>, <#extendedParameter#>);
 //}
 
+@protocol HXDataControllerRequestHandleDelegate <NSObject>
+
+@optional
+
+- (void)requestSuccessWithResponse:(id _Nullable)response
+                           message:(NSString * _Nullable)message
+                 extendedParameter:(id _Nullable)extendedParameter
+                        requestDes:(NSString *)requestDes;
+
+- (void)requestFailWithNetNotReachable:(BOOL)netNotReachable
+                               message:(NSString * _Nullable)message
+                                 error:(NSError * _Nullable)error
+                     extendedParameter:(id _Nullable)extendedParameter
+                            requestDes:(NSString *)requestDes;
+
+@end
+
+
 @interface HXBaseDataController : NSObject
 #pragma mark - Require Tip
-
-@property (nonatomic, weak) id<HXBaseDataControllerDelegate> requestDelegate;
+@property (nonatomic, weak) id<HXDataControllerRequestHandleDelegate> requestDelegate;
 @property (nonatomic, weak) UIViewController *associatedVC;
+
+//noti retain
+@property (nonatomic, copy) void(^nextHandleBlockAfterGloableHandled)(id requestIdentifier);
 
 //default Class come from set class method  as below: setDefaultClassForCurrentProgramDataController
 //you can override this property
@@ -49,6 +69,15 @@
 - (id _Nonnull)startRequest:(id _Nonnull)request
          requestDescription:(NSString *)requestDescription;
 
+//for convience
+- (id _Nonnull)startRequest:(id _Nonnull)request
+               successBlock:(id _Nullable)successBlock
+                  failBlock:(id _Nullable)failBlock
+                upperMethod:(SEL)upperMethod;
+
+- (id _Nonnull)startRequest:(id _Nonnull)request
+         upperMethod:(SEL)upperMethod;
+
 
 - (void)stopRequest:(id _Nonnull)requestIdentifier;
 
@@ -56,8 +85,20 @@
 
 
 #pragma mark -Can Overrride
-//return: [self.currentProgramDataController createRequestWithParameter:paramter]
+
+//default return: [self.currentProgramDataController identifierForRequest:request]
+- (id _Nonnull)identifierForRequest:(id _Nonnull)request;
+
+//default return: [self.currentProgramDataController createRequestWithParameter:paramter]
 - (id _Nullable)createRequestWithParameter:(id _Nonnull)paramter;
+
+//default return: [self.currentProgramDataController createRequestWithPath:path method:method arguments:arguments]
+- (id _Nullable)createRequestWithPath:(NSString *)path method:(NSString *)method arguments:(id _Nullable)arguments;
+
+//decide should callback after request finished
+//default yes
+- (BOOL)shouldCallBackForRequestIdentifier:(id)identifier;
+
 @end
 
 

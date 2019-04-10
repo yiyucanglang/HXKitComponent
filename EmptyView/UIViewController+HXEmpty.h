@@ -17,7 +17,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, strong) UIView<HXEmptyViewDelegate> *hxFailView;
 
 //as above
-@property (nonatomic, strong, readonly) UIView<HXEmptyViewDelegate> *hxEmptyView;
+@property (nonatomic, strong) UIView<HXEmptyViewDelegate> *hxEmptyView;
 
 //as above
 @property (nonatomic, strong) UIView *hxHudView;

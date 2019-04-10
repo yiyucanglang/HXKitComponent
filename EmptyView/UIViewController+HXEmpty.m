@@ -85,6 +85,29 @@ void *kHXEmptyView            = &kHXEmptyView;
 #pragma mark - Delegate
 
 #pragma mark - Setter And Getter
+- (UIView<HXEmptyViewDelegate> *)hxFailView {
+    return objc_getAssociatedObject(self, kHXFailView);
+}
+
+- (UIView<HXEmptyViewDelegate> *)hxEmptyView {
+    return objc_getAssociatedObject(self, kHXEmptyView);
+}
+
+- (UIView *)hxHudView {
+    return objc_getAssociatedObject(self, kHXHudView);
+}
+
+- (void)setHxFailView:(UIView<HXEmptyViewDelegate> *)hxFailView {
+    objc_setAssociatedObject(self, kHXFailView, hxFailView, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (void)setHxEmptyView:(UIView<HXEmptyViewDelegate> *)hxEmptyView {
+    objc_setAssociatedObject(self, kHXEmptyView, hxEmptyView, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+- (void)setHxHudView:(UIView *)hxHudView {
+    objc_setAssociatedObject(self, kHXHudView, hxHudView, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
 
 #pragma mark - Dealloc
 

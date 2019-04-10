@@ -22,8 +22,5 @@
 #import "HXCommonEmptyView.h"
 #endif
 
-//#if __has_include("HXBaseConvenientHeaderFooterView.h")
-//#import "HXBaseConvenientHeaderFooterView.h"
-//#endif
 
 #endif /* HXKitComponent_h */

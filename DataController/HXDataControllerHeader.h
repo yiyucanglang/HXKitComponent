@@ -9,7 +9,7 @@
 #ifndef HXDataControllerHeader_h
 #define HXDataControllerHeader_h
 
-#pragma mark - APIMethodMacro
+#pragma mark -  Block APIMethodMacro
 
 //example
 /*
@@ -29,6 +29,12 @@
 
 #define  BaseConvenienceRequsetAPIMacro(RequestDescription, CustomParameterName, CustomParameterType, CustomSuccessBlockResponseParameter, CustomSuccessBlockExtendedParameter,  CustomFailBlockExtendedParameter) - (id _Nullable)requestOf##RequestDescription##With##CustomParameterName:(CustomParameterType)parameter successBlock:(nullable void(^)(CustomSuccessBlockResponseParameter, NSString  * _Nullable message, CustomSuccessBlockExtendedParameter))successBlock failBlock:(void(^)(BOOL netNotReachable, NSString * _Nullable message, NSError * _Nullable error, CustomFailBlockExtendedParameter))failBlock;
 
+#pragma mark - Delegate Macro
+#define RequsetAPIMacroForDelegate(RequestDescription)  BaseRequsetAPIMacroForDelegate(RequestDescription, Parameter, id _Nullable)
+
+#define BaseRequsetAPIMacroForDelegate(RequestDescription, CustomParameterName, CustomParameterType)    - (id _Nullable)requestOf##RequestDescription##With##CustomParameterName:(CustomParameterType)parameter;
+
+
 #pragma mark - StaticKey
 static NSString const *HXDataContollerUrlKey = @"Url";
 static NSString const *HXDataContollerHTTPMethodKey = @"HTTPMethod";
@@ -47,6 +53,8 @@ typedef void (^DataControllerSuccessBlock)(id _Nullable response, NSString  * _N
 
 typedef void (^DataControllerFailBlock)(BOOL netNotReachable, NSString  * _Nullable message, NSError * _Nullable error, id _Nullable extendedParameter);
 
+#define HXWeakObj(o)   __weak   typeof(o) o##Weak = o;
+#define HXStrongObj(o) __strong typeof(o) o = o##Weak;
 
 #pragma mark - CompletionHandlerDelegate
 @protocol HXBaseDataControllerDelegate <NSObject>
@@ -62,7 +70,8 @@ typedef void (^DataControllerFailBlock)(BOOL netNotReachable, NSString  * _Nulla
                        message:(NSString * _Nullable)message
                          error:(NSError * _Nullable)error
              extendedParameter:(id _Nullable)extendedParameter
-             requestIdentifier:(id _Nonnull)requestIdentifier;
+             requestIdentifier:(id _Nonnull)requestIdentifier
+                  globalHandled:(BOOL)globalHandled;
 
 @end
 
@@ -79,6 +88,8 @@ typedef void (^DataControllerFailBlock)(BOOL netNotReachable, NSString  * _Nulla
 @optional
 
 - (id _Nullable)createRequestWithParameter:(id _Nonnull)paramter;
+
+- (id _Nullable)createRequestWithPath:(NSString *)path method:(NSString *)method arguments:(id _Nullable)arguments;
 
 @end
 
