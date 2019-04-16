@@ -204,7 +204,7 @@ static NSString *currentProgramDataControllerClassName;
             [invocation setArgument:&extendedParameter atIndex:4];
             [invocation invoke];
             
-            __weak HXTuple *tuple = nil;
+            __autoreleasing HXTuple *tuple = nil;
             if ([signature methodReturnLength] != 0)
             {
                 [invocation getReturnValue:&tuple];
@@ -264,7 +264,7 @@ static NSString *currentProgramDataControllerClassName;
             [invocation setArgument:&extendedParameter atIndex:5];
             [invocation invoke];
             
-            __weak HXTuple *tuple = nil;
+            __autoreleasing HXTuple *tuple = nil;
             if ([signature methodReturnLength] != 0)
             {
                 [invocation getReturnValue:&tuple];

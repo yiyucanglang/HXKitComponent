@@ -22,5 +22,8 @@
 #import "HXCommonEmptyView.h"
 #endif
 
+#if __has_include("HXImgtextCombineView.h")
+#import "HXImgtextCombineView.h"
+#endif
 
 #endif /* HXKitComponent_h */

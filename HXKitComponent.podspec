@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'HXKitComponent'
-  s.version          = '0.0.3'
+  s.version          = '0.0.4'
   s.summary          = '开发常用基础库'
 
   s.homepage         = 'https://github.com/yiyucanglang'
@@ -32,6 +32,14 @@ Pod::Spec.new do |s|
   s.subspec 'HXEmptyView' do |ss|
     ss.public_header_files = 'EmptyView/*{h}'
     ss.source_files = 'EmptyView/*.{h,m}'
+    ss.dependency 'Masonry'
+    ss.dependency 'HXKitComponent/CoreHead'
+    
+  end
+
+  s.subspec 'HXImgtextCombineView' do |ss|
+    ss.public_header_files = 'HXImgtextCombineView/*{h}'
+    ss.source_files = 'HXImgtextCombineView/*.{h,m}'
     ss.dependency 'Masonry'
     ss.dependency 'HXKitComponent/CoreHead'
     
