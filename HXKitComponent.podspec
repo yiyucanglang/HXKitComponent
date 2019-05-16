@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'HXKitComponent'
-  s.version          = '0.0.4'
+  s.version          = '0.0.5'
   s.summary          = '开发常用基础库'
 
   s.homepage         = 'https://github.com/yiyucanglang'
@@ -9,7 +9,7 @@ Pod::Spec.new do |s|
   s.source           = { :git => 'https://github.com/yiyucanglang/HXKitComponent.git', :tag => s.version.to_s }
   s.static_framework = true
   s.ios.deployment_target = '8.0'
-
+  s.default_subspecs = 'CoreHead', 'HXTuple', 'HXDataController', 'HXEmptyView', 'HXImgtextCombineView'
 
   s.subspec 'CoreHead' do |ss|
     ss.public_header_files = 'HXKitComponent.h'
@@ -43,6 +43,16 @@ Pod::Spec.new do |s|
     ss.dependency 'Masonry'
     ss.dependency 'HXKitComponent/CoreHead'
     
+  end
+
+  s.subspec 'HXMethodSwitch' do |ss|
+    ss.public_header_files = 'HXMethodSwitch/*{h}'
+    ss.source_files = 'HXMethodSwitch/*.{h,m}'
+  end
+  
+  s.subspec 'HXSafeTimer' do |ss|
+    ss.public_header_files = 'HXSafeTimer/*{h}'
+    ss.source_files = 'HXSafeTimer/*.{h,m}'
   end
   
  end
