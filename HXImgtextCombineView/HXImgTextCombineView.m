@@ -40,6 +40,17 @@
 }
 
 #pragma mark - System Method
+//这个问题在WWDC 2012 Session 216视频中提到了一种解决方式。它重写了按钮中的pointInside方法，使得按钮热区不够44×44大小的先自动缩放到44×44，再判断触摸点是否在新的热区内。
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent*)event
+{
+    CGRect bounds = self.bounds;
+    //若原热区小于44x44，则放大热区，否则保持原大小不变
+    CGFloat widthDelta = MAX(44.0 - bounds.size.width, 0);
+    CGFloat heightDelta = MAX(44.0 - bounds.size.height, 0);
+    bounds = CGRectInset(bounds, -0.5 * widthDelta, -0.5 * heightDelta);
+    return CGRectContainsPoint(bounds, point);
+}
+
 
 #pragma mark - Public Method
 - (void)reloadUI {
