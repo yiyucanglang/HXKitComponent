@@ -58,6 +58,7 @@
 }
 
 - (void)addTargetForClickEvent:(id)target action:(SEL)action {
+    [_tap removeTarget:nil action:nil];
     [_tap addTarget:target action:action];
 }
 

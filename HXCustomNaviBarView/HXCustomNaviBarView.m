@@ -6,25 +6,29 @@
 //  Copyright © 2019 DaHuanXiong. All rights reserved.
 //
 
+#if 1
+
+#define HXLog(...) NSLog(@"%@",[NSString stringWithFormat:__VA_ARGS__])
+#else
+#define HXLog(...)
+
+#endif
+
+
 #import "HXCustomNaviBarView.h"
 #import <Masonry/Masonry.h>
 #import "HXImgTextCombineView.h"
+#import <KVOController/KVOController.h>
 
 @interface HXCustomNaviBarView()
 @property (nonatomic, strong)   UIView    *translucentView;
+@property (nonatomic, strong) UIVisualEffectView  *effectView;
+
 @property (nonatomic, strong)   UIView    *contentView;
+@property (nonatomic, strong)   UIView    *lineView;
 
-@property (nonatomic, strong)   UILabel   *innerTitleLB;
-@property (nonatomic, strong)   HXImgTextCombineView  *innerLeftBtn;
-@property (nonatomic, strong)   HXImgTextCombineView  *innerRightBtn;
-
-@property (nonatomic, strong)   UIView  *lineView;
-
-
-@property (nonatomic, strong)   MASConstraint  *leftBtnLeftMarginConstraint;
 
 @property (nonatomic, strong)   MASConstraint  *leftItemMarginConstraint;
-
 @property (nonatomic, strong)   MASConstraint  *rightItemMarginConstraint;
 
 @property (nonatomic, strong)   MASConstraint  *heightConstraint;
@@ -33,18 +37,30 @@
 @property (nonatomic, strong)   MASConstraint  *rightItemMaxWidthConstraint;
 @property (nonatomic, strong)   MASConstraint  *titleLeftConstraint;
 
+@property (nonatomic, assign) CGFloat   currentNaviBarHeight;
+
+@property (nonatomic, weak) UIScrollView   *autoAssociatedVCScrollView;
+
+@property (nonatomic, weak) UIScrollView   *unionScrollView;
+
 @end
 
 @implementation HXCustomNaviBarView
 {
     BOOL _registNotiFlag;
+    BOOL _customLayoutFlag;
 }
+@synthesize leftItem   = _leftItem;
+@synthesize rightItem  = _rightItem;
+@synthesize middleView = _middleView;
+
 #pragma mark - Life Cycle
-- (instancetype)init {
-    if (self = [super init]) {
+- (instancetype)initWithFrame:(CGRect)frame {
+    if (self = [super initWithFrame:frame]) {
         self.itemMaxLength     = 100;
         self.leftItemMargin    = 15;
         self.rightItemMargin   = -15;
+        _translucent           = NO;
         [self _registNoti];
         [self _UIConfig];
     }
@@ -60,25 +76,49 @@
             make.left.top.right.equalTo(self.superview);
             if ([self isX]) {
                 self.heightConstraint = make.height.equalTo(@(88));
+                [self updateNaviBarHeight:88];
             }
             else {
                 self.heightConstraint = make.height.equalTo(@(64));
+                [self updateNaviBarHeight:64];
             }
         }];
+        HXLog(@"%s  _orientationChanged", _cmd);
+        [self _orientationChanged];
     }
 }
 
-
-#pragma mark - Public Method
-- (void)addTargetForLeftBtn:(id)target action:(SEL)action {
-    [self.innerLeftBtn addTargetForClickEvent:target action:action];
+- (void)setBackgroundColor:(UIColor *)backgroundColor {
+    self.translucentView.backgroundColor = backgroundColor;
 }
 
-- (void)addTargetForRightBtn:(id)target action:(SEL)action {
-    [self.innerRightBtn addTargetForClickEvent:target action:action];
+- (void)setAlpha:(CGFloat)alpha {
+    self.effectView.alpha = alpha;
+    self.lineView.alpha = alpha;
+}
+
+
+
+#pragma mark - Public Method
+
+- (void)addTargetForLeftItem:(id)target action:(SEL)action {
+    
+    if (self.leftItem && [self.leftItem isKindOfClass:[HXImgTextCombineView class]]) {
+        HXImgTextCombineView *temp = (HXImgTextCombineView *)self.leftItem;
+        [temp addTargetForClickEvent:target action:action];
+    }
+    
+}
+
+- (void)addTargetForRightItem:(id)target action:(SEL)action {
+    if (self.rightItem && [self.rightItem isKindOfClass:[HXImgTextCombineView class]]) {
+        HXImgTextCombineView *temp = (HXImgTextCombineView *)self.rightItem;
+        [temp addTargetForClickEvent:target action:action];
+    }
 }
 
 - (void)customLayout:(void (^)(UIView * _Nonnull))layoutBlock {
+    _customLayoutFlag = YES;
     for (UIView *item in self.contentView.subviews) {
         [item removeFromSuperview];
     }
@@ -87,28 +127,48 @@
     [self layoutIfNeeded];
 }
 
-#pragma mark - Override
-- (void)setBackgroundColor:(UIColor *)backgroundColor {
-    self.translucentView.backgroundColor = backgroundColor;
+- (void)bindingUnionScrollView:(UIScrollView *)scrollView scrollHandler:(void (^)(UIScrollView * _Nonnull))swipeHandler {
+    if ([scrollView isEqual:self.autoAssociatedVCScrollView]) {
+        self.autoAssociatedVCScrollView = nil;
+    }
+    
+    self.unionScrollView = scrollView;
+    
+    if (@available(iOS 11.0, *)) {
+        scrollView.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
+    }
+    [self _statusBarHeightChanged];
+    [self.KVOControllerNonRetaining observe:scrollView keyPath:FBKVOClassKeyPath(UIScrollView, contentOffset) options:NSKeyValueObservingOptionInitial|NSKeyValueObservingOptionNew block:^(id  _Nullable observer, id  _Nonnull object, NSDictionary<NSString *,id> * _Nonnull change) {
+        swipeHandler(scrollView);
+    }];
+    
 }
 
-- (void)setAlpha:(CGFloat)alpha {
-    self.translucentView.alpha = alpha;
-}
+#pragma mark - Override
 
 #pragma mark - Private Method
 
 #pragma mark Layout
 - (void)_UIConfig {
     
-    [self addTargetForLeftBtn:self action:@selector(_leftBtnAction)];
+    [self addTargetForLeftItem:self action:@selector(_leftBtnAction)];
     
     self.backgroundColor = [UIColor clearColor];
-    [self addSubview:self.translucentView];
+    
+    UIBlurEffect *blurEffect =[UIBlurEffect effectWithStyle:UIBlurEffectStyleLight];
+    self.effectView = [[UIVisualEffectView alloc] initWithEffect:blurEffect];
+    [self.effectView.contentView addSubview:self.translucentView];
     [self.translucentView mas_makeConstraints:^(MASConstraintMaker *make) {
+        make.edges.equalTo(self.translucentView.superview);
+    }];
+    
+    [self addSubview:self.effectView];
+    [self.effectView mas_makeConstraints:^(MASConstraintMaker *make) {
         make.edges.equalTo(self);
     }];
     self.translucentView.backgroundColor = [UIColor whiteColor];
+    
+    
     
     [self addSubview:self.contentView];
     [self.contentView mas_makeConstraints:^(MASConstraintMaker *make) {
@@ -119,12 +179,8 @@
 
 - (void)_contentUIConfig {
     
-    for (UIView *item in self.contentView.subviews) {
-        [item removeFromSuperview];
-    }
-    
     [self _leftItemUIConfig];
-    [self _titleUIConfig];
+    [self _middleViewUIConfig];
     [self _rightItemUIConfig];
     
     
@@ -141,40 +197,62 @@
 }
 
 - (void)_leftItemUIConfig {
-    [self.innerLeftBtn removeFromSuperview];
     
-    [self.contentView addSubview:self.leftView];
-    [self.leftView mas_makeConstraints:^(MASConstraintMaker *make) {
-        self.leftItemMarginConstraint = make.left.equalTo(self.contentView).with.offset(15);
+    if (_customLayoutFlag) {
+        return;
+    }
+    
+    [self.leftItem removeFromSuperview];
+
+    [self.contentView addSubview:self.leftItem];
+    [self.leftItem mas_makeConstraints:^(MASConstraintMaker *make) {
+        self.leftItemMarginConstraint = make.left.equalTo(self.contentView).with.offset(self.leftItemMargin);
         make.centerY.equalTo(self.contentView);
-        self.leftItemMaxWidthConstraint =  make.width.lessThanOrEqualTo(@(100));
+        self.leftItemMaxWidthConstraint =  make.width.lessThanOrEqualTo(@(self.itemMaxLength));
     }];
 }
 
-- (void)_titleUIConfig {
-    [self.innerTitleLB removeFromSuperview];
+- (void)_middleViewUIConfig {
     
-    [self.contentView addSubview:self.titleView];
-    [self.titleView mas_makeConstraints:^(MASConstraintMaker *make) {
+    if (_customLayoutFlag) {
+        return;
+    }
+    
+    [self.middleView removeFromSuperview];
+
+    [self.contentView addSubview:self.middleView];
+    [self.middleView mas_makeConstraints:^(MASConstraintMaker *make) {
         make.center.equalTo(self.contentView);
-        self.titleLeftConstraint = make.left.greaterThanOrEqualTo(self.contentView).with.offset(110);
+        self.titleLeftConstraint = make.left.greaterThanOrEqualTo(self.contentView).with.offset(self.itemMaxLength + 10);
     }];
 }
 
 - (void)_rightItemUIConfig {
-    [self.innerRightBtn removeFromSuperview];
     
-    [self.contentView addSubview:self.rightView];
-    [self.rightView mas_makeConstraints:^(MASConstraintMaker *make) {
-        self.rightItemMarginConstraint = make.right.equalTo(self.contentView).with.offset(-15);
+    if (_customLayoutFlag) {
+        return;
+    }
+    
+    [self.contentView addSubview:self.rightItem];
+    [self.rightItem mas_makeConstraints:^(MASConstraintMaker *make) {
+        self.rightItemMarginConstraint = make.right.equalTo(self.contentView).with.offset(self.rightItemMargin);
         make.centerY.equalTo(self.contentView);
-        self.rightItemMaxWidthConstraint =  make.width.lessThanOrEqualTo(@(100));
+        self.rightItemMaxWidthConstraint =  make.width.lessThanOrEqualTo(@(self.itemMaxLength));
     }];
+}
+
+- (void)_createDefaultRightItem {
+    
+    HXImgTextCombineView *temp = [[HXImgTextCombineView alloc] init];
+    temp.titleLB.textColor = [UIColor colorWithRed:102/255.0 green:102/255.0 blue:102/255.0 alpha:1];
+    temp.titleLB.font = [UIFont systemFontOfSize:18];
+    self.rightItem = temp;
 }
 
 #pragma mark
 - (void)_registNoti {
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_orientationChanged:) name:UIDeviceOrientationDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_orientationChanged) name:UIDeviceOrientationDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_statusBarHeightChanged) name:UIApplicationDidChangeStatusBarFrameNotification object:nil];
     _registNotiFlag = YES;
 }
 
@@ -184,12 +262,8 @@
     }
 }
 
-- (void)_leftBtnAction {
-    [self.hx_ViewController.navigationController popViewControllerAnimated:YES];
-}
-
-- (void)_orientationChanged:(NSNotification *)noti {
-    UIDevice *device = noti.object;
+- (void)_orientationChanged {
+    UIDevice *device = [UIDevice currentDevice];
     
     if (device.orientation == UIDeviceOrientationFaceUp || device.orientation == UIDeviceOrientationFaceUp) {
         return;
@@ -198,16 +272,16 @@
     if (device.orientation == UIDeviceOrientationLandscapeLeft || device.orientation == UIDeviceOrientationLandscapeRight) {
         
         [self.contentHeightConstraint setOffset:32];
-        [self.heightConstraint setOffset:32];
+        [self updateNaviBarHeight:52];
         
     }
     else {
         
         if ([self isX]) {
-            [self.heightConstraint setOffset:88];
+            [self updateNaviBarHeight:88];
         }
         else {
-            [self.heightConstraint setOffset:64];
+            [self updateNaviBarHeight:64];
         }
         
         [self.contentHeightConstraint setOffset:44];
@@ -215,10 +289,36 @@
     }
 }
 
-- (void)_createDefaultRightBtn {
-    self.innerRightBtn = [[HXImgTextCombineView alloc] init];
-    self.innerRightBtn.titleLB.textColor = [UIColor colorWithRed:102/255.0 green:102/255.0 blue:102/255.0 alpha:1];
-    self.innerRightBtn.titleLB.font = [UIFont systemFontOfSize:18];
+- (void)_statusBarHeightChanged {
+    UIEdgeInsets edge = self.unionScrollView.contentInset;
+    if (![self isX]) {//非X
+        if ([UIApplication sharedApplication].statusBarFrame.size.height == 20) {
+            edge.top = 0;
+            HXLog(@"%s top:%@", _cmd, @(0));
+        }
+        else {
+            edge.top = 20;
+            HXLog(@"%s top:%@", _cmd, @(20));
+        }
+        self.unionScrollView.contentInset = edge;
+    }
+}
+
+- (void)_leftBtnAction {
+    [self.hx_ViewController.navigationController popViewControllerAnimated:YES];
+}
+
+- (void)updateNaviBarHeight:(CGFloat)newHeight {
+    self.currentNaviBarHeight = newHeight;
+    
+    [self.heightConstraint setOffset:newHeight];
+    
+    UIEdgeInsets insets = self.autoAssociatedVCScrollView.contentInset;
+    
+    HXLog(@"%s top:%@", _cmd, @(newHeight));
+    
+    insets.top = newHeight;
+    self.autoAssociatedVCScrollView.contentInset = insets;
 }
 
 #pragma mark Tool
@@ -239,28 +339,6 @@
 }
 
 
-
-- (UIView *)titleView {
-    if (self.customTitleView) {
-        return self.customTitleView;
-    }
-    return self.innerTitleLB;
-}
-
-- (UIView *)leftView {
-    if (self.customLeftBtn) {
-        return self.customLeftBtn;
-    }
-    return self.innerLeftBtn;
-}
-
-- (UIView *)rightView {
-    if (self.customRightBtn) {
-        return self.customRightBtn;
-    }
-    return self.innerRightBtn;
-}
-
 #pragma mark - Delegate
 
 #pragma mark - Setter And Getter
@@ -275,30 +353,34 @@
 - (UIView *)contentView {
     if (!_contentView) {
         _contentView = [[UIView alloc] init];
+        _contentView.backgroundColor = [UIColor clearColor];
     }
     return _contentView;
 }
 
 
-- (HXImgTextCombineView *)innerLeftBtn {
-    if (!_innerLeftBtn) {
-        _innerLeftBtn = [[HXImgTextCombineView alloc] init];
-        _innerLeftBtn.titleLB.textColor = [UIColor colorWithRed:102/255.0 green:102/255.0 blue:102/255.0 alpha:1];
-        _innerLeftBtn.titleLB.font = [UIFont systemFontOfSize:18];
+- (UIView *)leftItem {
+    if (!_leftItem) {
+        HXImgTextCombineView *temp = [[HXImgTextCombineView alloc] init];
+        temp.titleLB.textColor = [UIColor colorWithRed:102/255.0 green:102/255.0 blue:102/255.0 alpha:1];
+        temp.titleLB.font = [UIFont systemFontOfSize:18];
+        
+        _leftItem = temp;
     }
-    return _innerLeftBtn;
+    return _leftItem;
 }
 
-- (UILabel *)innerTitleLB {
-    if (!_innerTitleLB) {
-        _innerTitleLB      = [[UILabel alloc] init];
-        _innerTitleLB.font = [UIFont systemFontOfSize:18];
-        _innerTitleLB.textAlignment = NSTextAlignmentCenter;
-        _innerTitleLB.textColor = [UIColor colorWithRed:51/255.0 green:51/255.0 blue:51/255.0 alpha:1];
-        [_innerTitleLB setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
-        [_innerTitleLB setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+- (UIView *)middleView {
+    if (!_middleView) {
+        UILabel *temp = [[UILabel alloc] init];
+        temp.font = [UIFont systemFontOfSize:18];
+        temp.textAlignment = NSTextAlignmentCenter;
+        temp.textColor = [UIColor colorWithRed:51/255.0 green:51/255.0 blue:51/255.0 alpha:1];
+        [temp setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+        [temp setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
+        _middleView = temp;
     }
-    return _innerTitleLB;
+    return _middleView;
 }
 
 - (UIView *)lineView {
@@ -312,74 +394,89 @@
 
 #pragma mark Config
 - (void)setTitle:(NSString *)title {
-    self.innerTitleLB.text = title;
+    if(self.middleView && [self.middleView isKindOfClass:[UILabel class]]) {
+        UILabel *temp = (UILabel *)self.middleView;
+        temp.text = title;
+    }
+    
 }
 
-- (void)setLeftBtnConfigDic:(NSDictionary *)leftBtnConfigDic {
-    if (leftBtnConfigDic) {
-        if (leftBtnConfigDic[HXNaviTitle]) {
-            self.innerLeftBtn.titleLB.text = leftBtnConfigDic[HXNaviTitle];
+- (void)setLeftItemConfigDic:(NSDictionary *)leftItemConfigDic {
+    
+    HXImgTextCombineView *leftItem = (HXImgTextCombineView *)self.leftItem;
+    
+    if (leftItemConfigDic && [leftItem isKindOfClass:[HXImgTextCombineView class]]) {
+        if (leftItemConfigDic[HXNaviTitle]) {
+            leftItem.titleLB.text = leftItemConfigDic[HXNaviTitle];
         }
-        if (leftBtnConfigDic[HXNaviFont]) {
-            self.innerLeftBtn.titleLB.font = leftBtnConfigDic[HXNaviFont];
+        if (leftItemConfigDic[HXNaviFont]) {
+            leftItem.titleLB.font = leftItemConfigDic[HXNaviFont];
         }
-        if (leftBtnConfigDic[HXNaviColor]) {
-            self.innerLeftBtn.titleLB.textColor = leftBtnConfigDic[HXNaviColor];
+        if (leftItemConfigDic[HXNaviColor]) {
+            leftItem.titleLB.textColor = leftItemConfigDic[HXNaviColor];
         }
-        if (leftBtnConfigDic[HXNaviImage]) {
-            self.innerLeftBtn.imageView.image = leftBtnConfigDic[HXNaviImage];
+        if (leftItemConfigDic[HXNaviImage]) {
+            leftItem.imageView.image = leftItemConfigDic[HXNaviImage];
+        }
+        if (leftItemConfigDic[HXNaviItemImgTextDistance]) {
+            leftItem.distance = [leftItemConfigDic[HXNaviItemImgTextDistance] floatValue];
         }
         
     }
 }
 
-- (void)setRightBtnConfigDic:(NSDictionary *)rightBtnConfigDic {
-    if (rightBtnConfigDic) {
-        [self _createDefaultRightBtn];
+- (void)setRightItemConfigDic:(NSDictionary *)rightItemConfigDic {
+    if (rightItemConfigDic) {
+        [self _createDefaultRightItem];
         [self _rightItemUIConfig];
-        
-        if (rightBtnConfigDic[HXNaviTitle]) {
-            self.innerRightBtn.titleLB.text = rightBtnConfigDic[HXNaviTitle];
+
+        HXImgTextCombineView *rightItem = (HXImgTextCombineView *)self.rightItem;
+        if (rightItemConfigDic[HXNaviTitle]) {
+            rightItem.titleLB.text = rightItemConfigDic[HXNaviTitle];
         }
-        if (rightBtnConfigDic[HXNaviFont]) {
-            self.innerRightBtn.titleLB.font = rightBtnConfigDic[HXNaviFont];
+        if (rightItemConfigDic[HXNaviFont]) {
+            rightItem.titleLB.font = rightItemConfigDic[HXNaviFont];
         }
-        if (rightBtnConfigDic[HXNaviColor]) {
-            self.innerRightBtn.titleLB.textColor = rightBtnConfigDic[HXNaviColor];
+        if (rightItemConfigDic[HXNaviColor]) {
+            rightItem.titleLB.textColor = rightItemConfigDic[HXNaviColor];
         }
-        if (rightBtnConfigDic[HXNaviImage]) {
-            self.innerRightBtn.imageView.image = rightBtnConfigDic[HXNaviImage];
+        if (rightItemConfigDic[HXNaviImage]) {
+            rightItem.imageView.image = rightItemConfigDic[HXNaviImage];
         }
-        
+        if (rightItemConfigDic[HXNaviItemImgTextDistance]) {
+            rightItem.distance = [rightItemConfigDic[HXNaviItemImgTextDistance] floatValue];
+        }
+
     }
 }
 
-- (void)setCustomLeftBtn:(UIView *)customLeftBtn {
-    _customLeftBtn = customLeftBtn;
+- (void)setLeftItem:(UIView *)leftItem {
+    _leftItem = leftItem;
     [self _leftItemUIConfig];
 }
 
-- (void)setCustomTitleView:(UIView *)customTitleView {
-    _customTitleView = customTitleView;
-    [self _titleUIConfig];
+- (void)setMiddleView:(UIView *)middleView {
+    _middleView = middleView;
+    [self _middleViewUIConfig];
 }
 
-- (void)setCustomRightBtn:(UIView *)customRightBtn {
-    _customRightBtn = customRightBtn;
+- (void)setRightItem:(UIView *)rightItem {
+    _rightItem = rightItem;
     [self _rightItemUIConfig];
 }
 
 
-- (void)setTitleDic:(NSDictionary *)titleDic {
-    if (titleDic) {
-        if (titleDic[HXNaviTitle]) {
-            self.innerTitleLB.text = titleDic[HXNaviTitle];
+- (void)setMiddleViewConfigDic:(NSDictionary *)middleViewConfigDic {
+    UILabel *defaultTitleLB = (UILabel *)self.middleView;
+    if (middleViewConfigDic && [defaultTitleLB isKindOfClass:[UILabel class]]) {
+        if (middleViewConfigDic[HXNaviTitle]) {
+            defaultTitleLB.text = middleViewConfigDic[HXNaviTitle];
         }
-        if (titleDic[HXNaviFont]) {
-            self.innerTitleLB.font = titleDic[HXNaviFont];
+        if (middleViewConfigDic[HXNaviFont]) {
+            defaultTitleLB.font = middleViewConfigDic[HXNaviFont];
         }
-        if (titleDic[HXNaviColor]) {
-            self.innerTitleLB.textColor = titleDic[HXNaviColor];
+        if (middleViewConfigDic[HXNaviColor]) {
+            defaultTitleLB.textColor = middleViewConfigDic[HXNaviColor];
         }
     }
 }
@@ -405,9 +502,37 @@
     self.lineView.hidden = hiddenSeperatorLine;
 }
 
+- (void)setTranslucent:(BOOL)translucent {
+    _translucent = translucent;
+    if (_translucent) {
+        self.translucentView.alpha = 0.85;
+    }
+    else {
+        self.translucentView.alpha = 1;
+    }
+}
+
 #pragma mark - Dealloc
 - (void)dealloc {
     [self _removeNoti];
+}
+
+@end
+
+@implementation HXCustomNaviBarView (ViewControllerPrivate)
+
+- (void)bindingAutoAssociatedVCScrollView:(UIScrollView *)scrollView {
+    
+    if ([self.unionScrollView isEqual:scrollView]) {
+        return;
+    }
+    
+    self.autoAssociatedVCScrollView = scrollView;
+    if (@available(iOS 11.0, *)) {
+        scrollView.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
+    }
+    
+    [self updateNaviBarHeight:self.currentNaviBarHeight];
 }
 
 @end

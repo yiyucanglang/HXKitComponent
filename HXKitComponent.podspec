@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name             = 'HXKitComponent'
-  s.version          = '0.0.5'
+  s.version          = '0.0.6'
   s.summary          = '开发常用基础库'
 
   s.homepage         = 'https://github.com/yiyucanglang'
@@ -53,6 +53,15 @@ Pod::Spec.new do |s|
   s.subspec 'HXSafeTimer' do |ss|
     ss.public_header_files = 'HXSafeTimer/*{h}'
     ss.source_files = 'HXSafeTimer/*.{h,m}'
+  end
+  
+  s.subspec 'HXCustomNaviBarView' do |ss|
+    ss.public_header_files = 'HXCustomNaviBarView/*{h}'
+    ss.source_files = 'HXCustomNaviBarView/*.{h,m}'
+    ss.dependency 'Masonry'
+    ss.dependency 'KVOController'
+    ss.dependency 'HXKitComponent/HXImgtextCombineView'
+    
   end
   
  end
