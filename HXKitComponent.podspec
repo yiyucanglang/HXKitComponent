@@ -61,7 +61,7 @@ Pod::Spec.new do |s|
     ss.dependency 'Masonry'
     ss.dependency 'KVOController'
     ss.dependency 'HXKitComponent/HXImgtextCombineView'
-    
+    ss.dependency 'HXKitComponent/HXMethodSwitch'
   end
   
  end
