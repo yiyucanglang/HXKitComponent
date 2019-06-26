@@ -6,7 +6,7 @@
 //  Copyright © 2019 DaHuanXiong. All rights reserved.
 //
 
-#if 1
+#if 0
 
 #define HXLog(...) NSLog(@"%@",[NSString stringWithFormat:__VA_ARGS__])
 #else
